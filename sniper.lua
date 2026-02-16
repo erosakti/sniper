@@ -16,7 +16,7 @@ local KEY_FILE_NAME = "SealSniper_Key.json"
 -- 👇 DAFTAR ITEM PRESET 👇
 -- ==================================================================
 local ITEM_LIST = {
-    "Seal", "Mimic Octopus"
+    "Giant Scorpion"
 }
 
 -- ==================================================================
