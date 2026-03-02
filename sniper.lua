@@ -15,7 +15,7 @@ local KEY_FILE_NAME = "SealSniper_Key.json"
 -- 👇 DAFTAR ITEM PRESET 👇
 -- ==================================================================
 local ITEM_LIST = {
-   "Giant Scorpion","Rainbow Dilophosaurus","Rainbow Elephant","Raccoon"
+    "Giant Scorpion","Rainbow Dilophosaurus","Rainbow Elephant","Raccoon"
 }
 
 -- ==================================================================
@@ -66,14 +66,6 @@ end
 local function StartSealSniperV120()
     if SafeGuiParent:FindFirstChild("SealKeySystem") then SafeGuiParent.SealKeySystem:Destroy() end
     
-    pcall(function()
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "ACCESS GRANTED";
-            Text = "Loading V120 Horizontal...";
-            Duration = 3;
-        })
-    end)
-    
     task.wait(1)
 
     local DefaultConfig = {
@@ -82,8 +74,9 @@ local function StartSealSniperV120()
     }
     
     -- Variabel Anti Stuck
-    getgenv().StuckInfo = { UUID = "", Count = 0 }
-    getgenv().LastBuyTime = 0
+    local stuckCounter = 0
+    local lastListingUUID = ""
+    local lastBuyTime = 0
 
     local ConfigFile = "SealSniper_Config_V120.json"
     getgenv().SniperConfig = DefaultConfig 
@@ -107,12 +100,15 @@ local function StartSealSniperV120()
     -- ANTI-DC
     task.spawn(function()
         pcall(function()
-            game.CoreGui.RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(child)
-                if child.Name == 'ErrorPrompt' and child:FindFirstChild('MessageArea') and child.MessageArea:FindFirstChild("ErrorFrame") then
-                    task.wait(2)
-                    TeleportService:Teleport(game.PlaceId, LocalPlayer)
-                end
-            end)
+            local promptGui = game:GetService("CoreGui"):FindFirstChild("RobloxPromptGui")
+            if promptGui then
+                promptGui.promptOverlay.ChildAdded:Connect(function(child)
+                    if child.Name == 'ErrorPrompt' then
+                        task.wait(2)
+                        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+                    end
+                end)
+            end
         end)
     end)
 
@@ -166,16 +162,21 @@ local function StartSealSniperV120()
     
     local MainFrame = Instance.new("Frame"); MainFrame.Name = "MainFrame"; MainFrame.Parent = ScreenGui
     MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20); MainFrame.BorderSizePixel = 0
-    MainFrame.Position = UDim2.new(0.05, 0, 0.25, 0)
-    MainFrame.Size = UDim2.new(0, 360, 0, 210) 
+    MainFrame.Position = UDim2.new(0.5, -190, 0.5, -115) -- Center
+    MainFrame.Size = UDim2.new(0, 380, 0, 230) -- Horizontal Size
     MainFrame.Active = true; MainFrame.Draggable = true
     Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
 
+    local RestoreBtn = Instance.new("TextButton"); RestoreBtn.Parent = ScreenGui; RestoreBtn.Visible = false; RestoreBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255); RestoreBtn.Position = UDim2.new(0.02, 0, 0.25, 0); RestoreBtn.Size = UDim2.new(0, 35, 0, 35); RestoreBtn.Text = "OPEN"; RestoreBtn.TextColor3 = Color3.new(1,1,1); RestoreBtn.Font = Enum.Font.GothamBold; RestoreBtn.TextSize = 10; Instance.new("UICorner", RestoreBtn).CornerRadius = UDim.new(0, 6)
+
     local Title = Instance.new("TextLabel"); Title.Parent = MainFrame; Title.BackgroundTransparency = 1; Title.Position = UDim2.new(0, 10, 0, 5); Title.Size = UDim2.new(0, 150, 0, 20); Title.Font = Enum.Font.GothamBold; Title.Text = "BOT V120 🛡️"; Title.TextColor3 = Color3.fromRGB(100, 255, 100); Title.TextSize = 13; Title.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- KIRI: SCROLL LIST
+    local CloseBtn = Instance.new("TextButton"); CloseBtn.Parent = MainFrame; CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50); CloseBtn.Position = UDim2.new(1, -25, 0, 5); CloseBtn.Size = UDim2.new(0, 20, 0, 20); CloseBtn.Text = "X"; CloseBtn.Font = Enum.Font.GothamBold; CloseBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0,4)
+    local MinBtn = Instance.new("TextButton"); MinBtn.Parent = MainFrame; MinBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100); MinBtn.Position = UDim2.new(1, -50, 0, 5); MinBtn.Size = UDim2.new(0, 20, 0, 20); MinBtn.Text = "-"; MinBtn.Font = Enum.Font.GothamBold; MinBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0,4)
+
+    -- KIRI: SCROLL LIST (Lebar 160)
     local ScrollFrame = Instance.new("ScrollingFrame"); ScrollFrame.Parent = MainFrame
-    ScrollFrame.Position = UDim2.new(0, 10, 0, 30); ScrollFrame.Size = UDim2.new(0, 140, 0, 170)
+    ScrollFrame.Position = UDim2.new(0, 10, 0, 35); ScrollFrame.Size = UDim2.new(0, 160, 0, 185)
     ScrollFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); ScrollFrame.ScrollBarThickness = 3; ScrollFrame.BorderSizePixel = 0
     Instance.new("UICorner", ScrollFrame).CornerRadius = UDim.new(0, 4)
 
@@ -210,24 +211,24 @@ local function StartSealSniperV120()
     ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10)
     ScrollFrame.ChildAdded:Connect(function() ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10) end)
 
-    -- KANAN: INPUTS
-    local X_OFFSET = 160 
+    -- KANAN: INPUTS (Mulai di X: 180)
+    local X_OFFSET = 180 
 
-    local InputPrice = Instance.new("TextBox"); InputPrice.Parent = MainFrame; InputPrice.Position = UDim2.new(0, X_OFFSET, 0, 30); InputPrice.Size = UDim2.new(0, 190, 0, 25); InputPrice.Font = Enum.Font.GothamBold; InputPrice.TextSize = 10; InputPrice.Text = tostring(getgenv().SniperConfig.MaxPrice); InputPrice.PlaceholderText = "Max Price"; InputPrice.TextColor3 = Color3.fromRGB(0, 255, 0); InputPrice.BackgroundColor3 = Color3.fromRGB(30, 30, 35); Instance.new("UICorner", InputPrice).CornerRadius = UDim.new(0,4)
+    local InputPrice = Instance.new("TextBox"); InputPrice.Parent = MainFrame; InputPrice.Position = UDim2.new(0, X_OFFSET, 0, 35); InputPrice.Size = UDim2.new(0, 190, 0, 25); InputPrice.Font = Enum.Font.GothamBold; InputPrice.TextSize = 10; InputPrice.Text = tostring(getgenv().SniperConfig.MaxPrice); InputPrice.PlaceholderText = "Max Price"; InputPrice.TextColor3 = Color3.fromRGB(0, 255, 0); InputPrice.BackgroundColor3 = Color3.fromRGB(30, 30, 35); Instance.new("UICorner", InputPrice).CornerRadius = UDim.new(0,4)
     InputPrice.FocusLost:Connect(function() getgenv().SniperConfig.MaxPrice = tonumber(InputPrice.Text) or 0; SaveConfig() end)
     
-    local InputDelay = Instance.new("TextBox"); InputDelay.Parent = MainFrame; InputDelay.Position = UDim2.new(0, X_OFFSET, 0, 60); InputDelay.Size = UDim2.new(0, 190, 0, 25); InputDelay.Font = Enum.Font.GothamBold; InputDelay.TextSize = 10; InputDelay.Text = tostring(getgenv().SniperConfig.HopDelay); InputDelay.PlaceholderText = "Hop Delay (s)"; InputDelay.TextColor3 = Color3.fromRGB(0, 200, 255); InputDelay.BackgroundColor3 = Color3.fromRGB(30, 30, 35); Instance.new("UICorner", InputDelay).CornerRadius = UDim.new(0,4)
+    local InputDelay = Instance.new("TextBox"); InputDelay.Parent = MainFrame; InputDelay.Position = UDim2.new(0, X_OFFSET, 0, 65); InputDelay.Size = UDim2.new(0, 190, 0, 25); InputDelay.Font = Enum.Font.GothamBold; InputDelay.TextSize = 10; InputDelay.Text = tostring(getgenv().SniperConfig.HopDelay); InputDelay.PlaceholderText = "Hop Delay (s)"; InputDelay.TextColor3 = Color3.fromRGB(0, 200, 255); InputDelay.BackgroundColor3 = Color3.fromRGB(30, 30, 35); Instance.new("UICorner", InputDelay).CornerRadius = UDim.new(0,4)
     InputDelay.FocusLost:Connect(function() getgenv().SniperConfig.HopDelay = tonumber(InputDelay.Text) or 8; SaveConfig() end)
     
-    local InputWebhook = Instance.new("TextBox"); InputWebhook.Parent = MainFrame; InputWebhook.Position = UDim2.new(0, X_OFFSET, 0, 90); InputWebhook.Size = UDim2.new(0, 190, 0, 25); InputWebhook.Font = Enum.Font.GothamBold; InputWebhook.TextSize = 9; InputWebhook.Text = getgenv().SniperConfig.WebhookUrl or ""; InputWebhook.PlaceholderText = "Webhook URL"; InputWebhook.TextColor3 = Color3.fromRGB(200, 100, 255); InputWebhook.BackgroundColor3 = Color3.fromRGB(30, 30, 35); InputWebhook.ClipsDescendants = true; InputWebhook.TextXAlignment = Enum.TextXAlignment.Left; InputWebhook.ClearTextOnFocus = false; Instance.new("UICorner", InputWebhook).CornerRadius = UDim.new(0,4)
+    local InputWebhook = Instance.new("TextBox"); InputWebhook.Parent = MainFrame; InputWebhook.Position = UDim2.new(0, X_OFFSET, 0, 95); InputWebhook.Size = UDim2.new(0, 190, 0, 25); InputWebhook.Font = Enum.Font.GothamBold; InputWebhook.TextSize = 9; InputWebhook.Text = getgenv().SniperConfig.WebhookUrl or ""; InputWebhook.PlaceholderText = "Webhook URL"; InputWebhook.TextColor3 = Color3.fromRGB(200, 100, 255); InputWebhook.BackgroundColor3 = Color3.fromRGB(30, 30, 35); InputWebhook.ClipsDescendants = true; InputWebhook.ClearTextOnFocus = false; Instance.new("UICorner", InputWebhook).CornerRadius = UDim.new(0,4)
     InputWebhook.FocusLost:Connect(function() getgenv().SniperConfig.WebhookUrl = InputWebhook.Text; SaveConfig() end)
 
-    local HopBtn = Instance.new("TextButton"); HopBtn.Parent = MainFrame; HopBtn.Position = UDim2.new(0, X_OFFSET, 0, 120); HopBtn.Size = UDim2.new(0, 90, 0, 25); HopBtn.Font = Enum.Font.GothamBold; HopBtn.TextSize = 9; Instance.new("UICorner", HopBtn).CornerRadius = UDim.new(0,4)
-    local FPSBtn = Instance.new("TextButton"); FPSBtn.Parent = MainFrame; FPSBtn.Position = UDim2.new(0, X_OFFSET + 100, 0, 120); FPSBtn.Size = UDim2.new(0, 90, 0, 25); FPSBtn.Font = Enum.Font.GothamBold; FPSBtn.TextSize = 9; Instance.new("UICorner", FPSBtn).CornerRadius = UDim.new(0,4)
+    local HopBtn = Instance.new("TextButton"); HopBtn.Parent = MainFrame; HopBtn.Position = UDim2.new(0, X_OFFSET, 0, 125); HopBtn.Size = UDim2.new(0, 90, 0, 25); HopBtn.Font = Enum.Font.GothamBold; HopBtn.TextSize = 9; Instance.new("UICorner", HopBtn).CornerRadius = UDim.new(0,4)
+    local FPSBtn = Instance.new("TextButton"); FPSBtn.Parent = MainFrame; FPSBtn.Position = UDim2.new(0, X_OFFSET + 100, 0, 125); FPSBtn.Size = UDim2.new(0, 90, 0, 25); FPSBtn.Font = Enum.Font.GothamBold; FPSBtn.TextSize = 9; Instance.new("UICorner", FPSBtn).CornerRadius = UDim.new(0,4)
     
-    local ToggleBtn = Instance.new("TextButton"); ToggleBtn.Parent = MainFrame; ToggleBtn.Position = UDim2.new(0, X_OFFSET, 0, 150); ToggleBtn.Size = UDim2.new(0, 190, 0, 30); ToggleBtn.Font = Enum.Font.GothamBlack; ToggleBtn.TextSize = 14; Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0,4)
+    local ToggleBtn = Instance.new("TextButton"); ToggleBtn.Parent = MainFrame; ToggleBtn.Position = UDim2.new(0, X_OFFSET, 0, 155); ToggleBtn.Size = UDim2.new(0, 190, 0, 30); ToggleBtn.Font = Enum.Font.GothamBlack; ToggleBtn.TextSize = 14; Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0,4)
     
-    local StatusLbl = Instance.new("TextLabel"); StatusLbl.Parent = MainFrame; StatusLbl.BackgroundTransparency = 1; StatusLbl.Position = UDim2.new(0, X_OFFSET, 0, 185); StatusLbl.Size = UDim2.new(0, 190, 0, 15); StatusLbl.Font = Enum.Font.Gotham; StatusLbl.Text = "IDLE"; StatusLbl.TextColor3 = Color3.fromRGB(150, 150, 150); StatusLbl.TextSize = 10; StatusLbl.TextWrapped = true; StatusLbl.TextYAlignment = Enum.TextYAlignment.Top
+    local StatusLbl = Instance.new("TextLabel"); StatusLbl.Parent = MainFrame; StatusLbl.BackgroundTransparency = 1; StatusLbl.Position = UDim2.new(0, X_OFFSET, 0, 195); StatusLbl.Size = UDim2.new(0, 190, 0, 15); StatusLbl.Font = Enum.Font.Gotham; StatusLbl.Text = "IDLE"; StatusLbl.TextColor3 = Color3.fromRGB(150, 150, 150); StatusLbl.TextSize = 10; StatusLbl.TextWrapped = true; StatusLbl.TextYAlignment = Enum.TextYAlignment.Top
 
     local function UpdateUI()
         if getgenv().SniperConfig.AutoHop then HopBtn.Text = "HOP: ON"; HopBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 200) else HopBtn.Text = "HOP: OFF"; HopBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60) end
@@ -240,21 +241,15 @@ local function StartSealSniperV120()
     end
     UpdateUI()
 
+    -- EVENT CONNECTIONS
     HopBtn.MouseButton1Click:Connect(function() getgenv().SniperConfig.AutoHop = not getgenv().SniperConfig.AutoHop; SaveConfig(); UpdateUI() end)
     FPSBtn.MouseButton1Click:Connect(function() ToggleFPS(true) end)
     ToggleBtn.MouseButton1Click:Connect(function() getgenv().SniperConfig.Running = not getgenv().SniperConfig.Running; SaveConfig(); UpdateUI() end)
-
-    local CloseBtn = Instance.new("TextButton"); CloseBtn.Parent = MainFrame; CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50); CloseBtn.Position = UDim2.new(1, -20, 0, 5); CloseBtn.Size = UDim2.new(0, 15, 0, 15); CloseBtn.Text = ""; Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0,3)
-    local MinBtn = Instance.new("TextButton"); MinBtn.Parent = MainFrame; MinBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100); MinBtn.Position = UDim2.new(1, -40, 0, 5); MinBtn.Size = UDim2.new(0, 15, 0, 15); MinBtn.Text = ""; Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0,3)
-    
     CloseBtn.MouseButton1Click:Connect(function() getgenv().SniperConfig.Running = false; ScreenGui:Destroy() end)
-    MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false end) -- Simple hide for now to avoid crash
+    MinBtn.MouseButton1Click:Connect(function() MainFrame.Visible = false; RestoreBtn.Visible = true end)
+    RestoreBtn.MouseButton1Click:Connect(function() MainFrame.Visible = true; RestoreBtn.Visible = false end)
 
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if not gameProcessed and input.KeyCode == Enum.KeyCode.RightControl then MainFrame.Visible = not MainFrame.Visible end
-    end)
-
-    -- SNIPER LOGIC DENGAN ANTI STUCK
+    -- SNIPER LOGIC (ANTI STUCK + SMART DELAY)
     local hopTimer = tick()
     local BoothController = nil; pcall(function() BoothController = require(ReplicatedStorage.Modules.TradeBoothControllers.TradeBoothController) end)
     local BuyController = nil; pcall(function() BuyController = require(ReplicatedStorage.Modules.TradeBoothControllers.TradeBoothBuyItemController) end)
@@ -280,25 +275,26 @@ local function StartSealSniperV120()
                     end
                     
                     if isTarget then
-                        -- ⏳ SMART DELAY: Tunggu 1.5 detik jika baru saja beli
-                        if (tick() - getgenv().LastBuyTime) < 1.5 then 
+                        -- ⏳ JEDA SERVER: Mencegah Spam Chat (Gambar 4)
+                        if (tick() - lastBuyTime) < 1.5 then 
                             StatusLbl.Text = "WAITING SERVER..."
                             return 
                         end
 
-                        -- 🔥 ANTI-STUCK LOGIC 🔥
-                        if getgenv().StuckInfo.UUID == listingUUID then
-                            getgenv().StuckInfo.Count = getgenv().StuckInfo.Count + 1
+                        -- 🔥 ANTI-STUCK: Menghitung Percobaan Beli 🔥
+                        if lastListingUUID == listingUUID then
+                            stuckCounter = stuckCounter + 1
                         else
-                            getgenv().StuckInfo.UUID = listingUUID
-                            getgenv().StuckInfo.Count = 0
+                            lastListingUUID = listingUUID
+                            stuckCounter = 0
                         end
 
-                        if getgenv().StuckInfo.Count > 20 then -- Sekitar 2-3 detik mencoba beli gagal
-                            StatusLbl.Text = "BUGGED ITEM! HOPPING..."
+                        -- Jika sudah coba > 15 kali (Item Bug) -> Langsung Pindah Server
+                        if stuckCounter > 15 then
+                            StatusLbl.Text = "BUGGED! HOPPING..."
                             StatusLbl.TextColor3 = Color3.fromRGB(255, 0, 0)
                             task.wait(0.5)
-                            ServerHop() 
+                            ServerHop()
                             return 
                         end
 
@@ -306,21 +302,20 @@ local function StartSealSniperV120()
                         StatusLbl.TextColor3 = Color3.fromRGB(0, 255, 0)
                         
                         task.spawn(function()
-                            pcall(function()
-                                if player ~= LocalPlayer then
+                            if player ~= LocalPlayer then
+                                pcall(function()
                                     if BuyController and BuyController.BuyItem then BuyController:BuyItem(player, listingUUID) 
                                     else ReplicatedStorage.GameEvents.TradeEvents.Booths.BuyListing:InvokeServer(player, listingUUID) end
-                                end
-                            end)
+                                end)
+                            end
                             SendWebhook(petName, info.Price, player.Name)
                         end)
                         
-                        -- Set waktu pembelian terakhir
-                        getgenv().LastBuyTime = tick()
+                        lastBuyTime = tick() -- Catat waktu pembelian
                         
-                        -- Jangan reset timer jika sedang stuck
-                        if getgenv().StuckInfo.Count < 5 then hopTimer = tick() end 
-                        StatusLbl.Text = "PURCHASING..." 
+                        -- Jangan reset timer Server Hop jika sedang mengalami Stuck
+                        if stuckCounter < 5 then hopTimer = tick() end 
+                        StatusLbl.Text = "PURCHASING..."
                         return 
                     end
                 end
@@ -380,11 +375,13 @@ if AutoLoginSuccess then return end
 -- ==================================================================
 -- 🎨 GUI KEY SYSTEM (FIX TEXT OVERFLOW)
 -- ==================================================================
+if SafeGuiParent:FindFirstChild("SealKeySystem") then SafeGuiParent.SealKeySystem:Destroy() end
+
 local ScreenGui = Instance.new("ScreenGui"); ScreenGui.Name = "SealKeySystem"; ScreenGui.Parent = SafeGuiParent; ScreenGui.ResetOnSpawn = false
 local MainFrame = Instance.new("Frame"); MainFrame.Name = "MainFrame"; MainFrame.Parent = ScreenGui; MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); MainFrame.Position = UDim2.new(0.5, -160, 0.5, -110); MainFrame.Size = UDim2.new(0, 320, 0, 220); MainFrame.BorderSizePixel = 0; Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 local Title = Instance.new("TextLabel"); Title.Parent = MainFrame; Title.BackgroundTransparency = 1; Title.Position = UDim2.new(0, 0, 0, 15); Title.Size = UDim2.new(1, 0, 0, 30); Title.Font = Enum.Font.GothamBlack; Title.Text = "SEAL SNIPER HUB"; Title.TextColor3 = Color3.fromRGB(0, 255, 150); Title.TextSize = 22
 
--- FIX TEKS TUMPAH DENGAN CONTAINER
+-- FIX: KOTAK CONTAINER SUPAYA TEKS TIDAK TUMPAH (Gambar 1)
 local InputContainer = Instance.new("Frame"); InputContainer.Parent = MainFrame; InputContainer.BackgroundColor3 = Color3.fromRGB(40, 40, 45); InputContainer.Position = UDim2.new(0.1, 0, 0.35, 0); InputContainer.Size = UDim2.new(0.8, 0, 0, 40); InputContainer.ClipsDescendants = true; Instance.new("UICorner", InputContainer).CornerRadius = UDim.new(0, 6)
 
 local KeyInput = Instance.new("TextBox"); KeyInput.Parent = InputContainer; KeyInput.BackgroundTransparency = 1; KeyInput.Position = UDim2.new(0, 5, 0, 0); KeyInput.Size = UDim2.new(1, -10, 1, 0); KeyInput.Font = Enum.Font.GothamBold; KeyInput.PlaceholderText = "Paste Key Here..."; KeyInput.Text = ""; KeyInput.TextColor3 = Color3.fromRGB(255, 255, 255); KeyInput.TextSize = 14; KeyInput.TextXAlignment = Enum.TextXAlignment.Left
@@ -405,7 +402,7 @@ VerifyBtn.MouseButton1Click:Connect(function()
     if success and response then
         if CheckIsValid(response, InputText) then
             if writefile then pcall(function() writefile(KEY_FILE_NAME, InputText:gsub("[%s%c]+", "")) end) end
-            ScreenGui:Destroy() -- Hapus UI Login
+            ScreenGui:Destroy()
             StartSealSniperV120()
         else
             StatusLbl.Text = "INVALID KEY"
