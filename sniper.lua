@@ -15,13 +15,7 @@ local KEY_FILE_NAME = "SealSniper_Key.json"
 -- 👇 DAFTAR ITEM PRESET 👇
 -- ==================================================================
 local ITEM_LIST = {
-    "Seal",
-    "Flamingo",
-    "Orang Utan",
-    "Toucan",
-    "Sea Turtle",
-    "Mimic Octopus",
-    "Hedgehog"
+   "Giant Scorpion","Rainbow Dilophosaurus","Rainbow Elephant","Raccoon"
 }
 
 -- ==================================================================
