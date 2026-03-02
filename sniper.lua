@@ -1,8 +1,9 @@
 --[[ 
-    🛡️ SEAL SNIPER V129 (SMART BUY FIX)
-    Status: 
-    - FIXED: Bot hopping after 1 buy (Sekarang bot akan diam dulu cek item hilang/tidak)
-    - ADDED: Purchase Cooldown (Supaya tidak spam beli item yang sama)
+    🛡️ SEAL SNIPER V130 (SAFE GUI & MOBILE FIX)
+    Status: FIXED "Lacking capability Plugin" Error
+    Fitur:
+    - Smart GUI Parent (gethui -> CoreGui -> PlayerGui)
+    - Anti-Stuck & Horizontal UI
 ]]
 
 -- ==================================================================
@@ -20,10 +21,9 @@ local ITEM_LIST = {
 }
 
 -- ==================================================================
--- 🛠️ FUNGSI SISTEM
+-- 🛠️ FUNGSI SISTEM AMAN (ANTI CRASH MOBILE)
 -- ==================================================================
 
-local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -32,9 +32,23 @@ local TeleportService = game:GetService("TeleportService")
 local VirtualUser = game:GetService("VirtualUser")
 local UserInputService = game:GetService("UserInputService")
 
-if CoreGui:FindFirstChild("SealKeySystem") then CoreGui.SealKeySystem:Destroy() end
-if CoreGui:FindFirstChild("SealSniperUI") then CoreGui.SealSniperUI:Destroy() end
-if CoreGui:FindFirstChild("BlackScreen") then CoreGui.BlackScreen:Destroy() end
+-- 🔥 FUNGSI MENCARI TEMPAT GUI YANG AMAN 🔥
+local function GetSafeGuiParent()
+    local success, parent = pcall(function() return gethui() end)
+    if success and parent then return parent end
+    
+    local success2, parent2 = pcall(function() return game:GetService("CoreGui") end)
+    if success2 and parent2 then return parent2 end
+    
+    return LocalPlayer:WaitForChild("PlayerGui") -- Fallback paling aman
+end
+
+local SafeParent = GetSafeGuiParent()
+
+-- Bersihkan GUI Lama
+if SafeParent:FindFirstChild("SealKeySystem") then SafeParent.SealKeySystem:Destroy() end
+if SafeParent:FindFirstChild("SealSniperUI") then SafeParent.SealSniperUI:Destroy() end
+if SafeParent:FindFirstChild("BlackScreen") then SafeParent.BlackScreen:Destroy() end
 
 local function GetLinkData(url)
     local NoCacheUrl = url .. "?buster=" .. tostring(math.random(1, 1000000))
@@ -57,24 +71,23 @@ local function CheckIsValid(databaseText, userKey)
 end
 
 -- ==================================================================
--- 🤖 LOGIKA BOT (V129 FIX)
+-- 🤖 LOGIKA BOT (GLOBAL VARIABLES)
 -- ==================================================================
 
 getgenv().SniperConfig = {
     Running = false, AutoHop = true, Targets = {}, MaxPrice = 10,
     Delay = 0.0, HopDelay = 8, WebhookUrl = "" 
 }
--- Perbaikan Variabel Global
 getgenv().StuckInfo = { UUID = "", Count = 0 }
-getgenv().LastBuyTime = 0 -- Tambahan Cooldown
+getgenv().LastBuyTime = 0
 
 local function SaveConfig()
-    if writefile then pcall(function() writefile("SealSniper_Config_V129.json", HttpService:JSONEncode(getgenv().SniperConfig)) end) end
+    if writefile then pcall(function() writefile("SealSniper_Config_V130.json", HttpService:JSONEncode(getgenv().SniperConfig)) end) end
 end
 
-if isfile("SealSniper_Config_V129.json") then
+if isfile("SealSniper_Config_V130.json") then
     pcall(function()
-        local decoded = HttpService:JSONDecode(readfile("SealSniper_Config_V129.json"))
+        local decoded = HttpService:JSONDecode(readfile("SealSniper_Config_V130.json"))
         for k, v in pairs(decoded) do getgenv().SniperConfig[k] = v end
     end)
 end
@@ -102,17 +115,26 @@ end
 local function SendWebhook(itemName, price, seller)
     local url = getgenv().SniperConfig.WebhookUrl
     if not url or url == "" or not string.find(url, "http") then return end
-    local data = {["embeds"] = {{["title"] = "🛡️ SNIPE ALERT!", ["description"] = "Bought **" .. itemName .. "**", ["color"] = 65280, ["fields"] = {{["name"] = "💰 Price", ["value"] = tostring(price), ["inline"] = true}, {["name"] = "👤 Seller", ["value"] = seller, ["inline"] = true}}, ["footer"] = {["text"] = "Seal Sniper V129"}}}}
+    local data = {["embeds"] = {{["title"] = "🛡️ SNIPE ALERT!", ["description"] = "Bought **" .. itemName .. "**", ["color"] = 65280, ["fields"] = {{["name"] = "💰 Price", ["value"] = tostring(price), ["inline"] = true}, {["name"] = "👤 Seller", ["value"] = seller, ["inline"] = true}}, ["footer"] = {["text"] = "Seal Sniper V130"}}}}
     local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
     if req then pcall(function() req({Url = url, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(data)}) end) end
 end
 
 -- ==================================================================
--- 🖥️ GUI & MAIN LOOP
+-- 🖥️ MAIN PROGRAM (GUI + LOGIC)
 -- ==================================================================
 
-local function StartSealSniperV129()
-    local ScreenGui = Instance.new("ScreenGui"); ScreenGui.Name = "SealSniperUI"; ScreenGui.Parent = CoreGui
+local function StartSealSniperV130()
+    -- Notifikasi aman (pcall mencegah crash jika diblokir executor)
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "ACCESS GRANTED";
+            Text = "Loading V130...";
+            Duration = 3;
+        })
+    end)
+
+    local ScreenGui = Instance.new("ScreenGui"); ScreenGui.Name = "SealSniperUI"; ScreenGui.Parent = SafeParent
     
     local RestoreBtn = Instance.new("TextButton"); RestoreBtn.Parent = ScreenGui
     RestoreBtn.Visible = false; RestoreBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
@@ -125,7 +147,7 @@ local function StartSealSniperV129()
     MainFrame.Size = UDim2.new(0, 360, 0, 200); 
     MainFrame.Active = true; MainFrame.Draggable = true; Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8)
     
-    local Title = Instance.new("TextLabel"); Title.Parent = MainFrame; Title.BackgroundTransparency = 1; Title.Position = UDim2.new(0, 10, 0, 5); Title.Size = UDim2.new(0, 150, 0, 20); Title.Font = Enum.Font.GothamBold; Title.Text = "BOT V129 🛡️"; Title.TextColor3 = Color3.fromRGB(100, 255, 100); Title.TextSize = 13; Title.TextXAlignment = Enum.TextXAlignment.Left
+    local Title = Instance.new("TextLabel"); Title.Parent = MainFrame; Title.BackgroundTransparency = 1; Title.Position = UDim2.new(0, 10, 0, 5); Title.Size = UDim2.new(0, 150, 0, 20); Title.Font = Enum.Font.GothamBold; Title.Text = "BOT V130 🛡️"; Title.TextColor3 = Color3.fromRGB(100, 255, 100); Title.TextSize = 13; Title.TextXAlignment = Enum.TextXAlignment.Left
 
     local CloseBtn = Instance.new("TextButton"); CloseBtn.Parent = MainFrame
     CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50); CloseBtn.Position = UDim2.new(1, -30, 0, 5)
@@ -187,21 +209,22 @@ local function StartSealSniperV129()
     InputWebhook.FocusLost:Connect(function() getgenv().SniperConfig.WebhookUrl = InputWebhook.Text; SaveConfig() end)
     HopBtn.MouseButton1Click:Connect(function() getgenv().SniperConfig.AutoHop = not getgenv().SniperConfig.AutoHop; SaveConfig(); UpdateUI() end)
     FPSBtn.MouseButton1Click:Connect(function() 
-        if not CoreGui:FindFirstChild("BlackScreen") then
-            local sg = Instance.new("ScreenGui"); sg.Name = "BlackScreen"; sg.Parent = CoreGui; sg.IgnoreGuiInset = true
+        if not SafeParent:FindFirstChild("BlackScreen") then
+            local sg = Instance.new("ScreenGui"); sg.Name = "BlackScreen"; sg.Parent = SafeParent; sg.IgnoreGuiInset = true
             local fr = Instance.new("Frame"); fr.Parent = sg; fr.Size = UDim2.new(1,0,1,0); fr.BackgroundColor3 = Color3.new(0,0,0)
             local btn = Instance.new("TextButton"); btn.Parent = fr; btn.Size = UDim2.new(1,0,1,0); btn.BackgroundTransparency = 1; btn.Text = "FPS SAVER (TAP TO OFF)"; btn.TextColor3 = Color3.new(1,1,1); btn.TextSize = 20
             btn.MouseButton1Click:Connect(function() sg:Destroy(); setfpscap(60) end); setfpscap(10)
         end
     end)
     ToggleBtn.MouseButton1Click:Connect(function() getgenv().SniperConfig.Running = not getgenv().SniperConfig.Running; SaveConfig(); UpdateUI() end)
-    UserInputService.InputBegan:Connect(function(input) if input.KeyCode == Enum.KeyCode.RightControl then MainFrame.Visible = not MainFrame.Visible end end)
 
     task.spawn(function()
-        game.CoreGui.RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(child)
-            if child.Name == 'ErrorPrompt' and child:FindFirstChild('MessageArea') and child.MessageArea:FindFirstChild("ErrorFrame") then
-                task.wait(2); TeleportService:Teleport(game.PlaceId, LocalPlayer)
-            end
+        pcall(function()
+            game.CoreGui.RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(child)
+                if child.Name == 'ErrorPrompt' and child:FindFirstChild('MessageArea') and child.MessageArea:FindFirstChild("ErrorFrame") then
+                    task.wait(2); TeleportService:Teleport(game.PlaceId, LocalPlayer)
+                end
+            end)
         end)
     end)
     LocalPlayer.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
@@ -226,33 +249,21 @@ local function StartSealSniperV129()
                                             if linkID and boothData.Items[linkID] then
                                                 local itemData = boothData.Items[linkID]
                                                 local petName = itemData.PetType or (itemData.PetData and itemData.PetData.PetType)
-                                                
                                                 for _, target in pairs(getgenv().SniperConfig.Targets) do
                                                     if petName == target then
                                                         
-                                                        -- ⏳ SMART DELAY: Cek apakah baru saja membeli item ini?
                                                         if (tick() - getgenv().LastBuyTime) < 2 then 
-                                                            -- Diam dulu, jangan hopping, tunggu server update
                                                             StatusLbl.Text = "WAITING SERVER..."
-                                                            task.wait(0.5) 
-                                                            return 
+                                                            task.wait(0.5); return 
                                                         end
 
-                                                        -- 🛡️ ANTI STUCK LOGIC (VERSI JINAK)
-                                                        if getgenv().StuckInfo.UUID == listingUUID then
-                                                            getgenv().StuckInfo.Count = getgenv().StuckInfo.Count + 1
-                                                        else
-                                                            getgenv().StuckInfo.UUID = listingUUID
-                                                            getgenv().StuckInfo.Count = 0
-                                                        end
+                                                        if getgenv().StuckInfo.UUID == listingUUID then getgenv().StuckInfo.Count = getgenv().StuckInfo.Count + 1
+                                                        else getgenv().StuckInfo.UUID = listingUUID; getgenv().StuckInfo.Count = 0 end
 
-                                                        -- Jika item tidak hilang setelah 30x cek (3 detik) -> BARU HOP
                                                         if getgenv().StuckInfo.Count > 30 then
                                                             StatusLbl.Text = "STUCK! HOPPING..."
                                                             StatusLbl.TextColor3 = Color3.fromRGB(255, 0, 0)
-                                                            task.wait(0.5)
-                                                            ServerHopFunc()
-                                                            return
+                                                            task.wait(0.5); ServerHopFunc(); return
                                                         end
 
                                                         StatusLbl.Text = "BUYING: " .. petName
@@ -264,12 +275,9 @@ local function StartSealSniperV129()
                                                             SendWebhook(petName, info.Price, player.Name)
                                                         end)
                                                         
-                                                        -- ✅ SUKSES BELI? Set Timer agar bot diam
                                                         getgenv().LastBuyTime = tick() 
-                                                        hopTimer = tick() -- Reset Hop Timer agar tidak pindah server dulu
-                                                        
-                                                        StatusLbl.Text = "PURCHASING..."
-                                                        return
+                                                        hopTimer = tick() 
+                                                        StatusLbl.Text = "PURCHASING..."; return
                                                     end
                                                 end
                                             end
@@ -287,9 +295,7 @@ local function StartSealSniperV129()
                     if StatusLbl.Text ~= "PURCHASING..." and sisa % 1 == 0 then StatusLbl.Text = "SCAN... " .. sisa .. "s"; StatusLbl.TextColor3 = Color3.fromRGB(255, 50, 50) end
                     if sisa <= 0 then StatusLbl.Text = "HOPPING..."; getgenv().SniperConfig.Running = true; ServerHopFunc(); task.wait(10) end
                 end
-            else
-                hopTimer = tick()
-            end
+            else hopTimer = tick() end
             task.wait()
         end
     end)
@@ -305,16 +311,13 @@ if isfile(KEY_FILE_NAME) then
         local dbData = GetLinkData(DATABASE_URL)
         if CheckIsValid(dbData, SavedKey) then
             AutoLoginSuccess = true
-            StartSealSniperV129()
+            StartSealSniperV130()
         end
     end
 end
 if AutoLoginSuccess then return end
 
--- ==================================================================
--- 🎨 KEY SYSTEM
--- ==================================================================
-local ScreenGui = Instance.new("ScreenGui"); ScreenGui.Name = "SealKeySystem"; ScreenGui.Parent = CoreGui
+local ScreenGui = Instance.new("ScreenGui"); ScreenGui.Name = "SealKeySystem"; ScreenGui.Parent = SafeParent
 local MainFrame = Instance.new("Frame"); MainFrame.Name = "MainFrame"; MainFrame.Parent = ScreenGui; MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30); MainFrame.Position = UDim2.new(0.5, -160, 0.5, -110); MainFrame.Size = UDim2.new(0, 320, 0, 220); MainFrame.BorderSizePixel = 0; Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 local Title = Instance.new("TextLabel"); Title.Parent = MainFrame; Title.BackgroundTransparency = 1; Title.Position = UDim2.new(0, 0, 0, 15); Title.Size = UDim2.new(1, 0, 0, 30); Title.Font = Enum.Font.GothamBlack; Title.Text = "SEAL SNIPER HUB"; Title.TextColor3 = Color3.fromRGB(0, 255, 150); Title.TextSize = 22
 
@@ -336,7 +339,7 @@ VerifyBtn.MouseButton1Click:Connect(function()
         if CheckIsValid(response, InputText) then
             if writefile then writefile(KEY_FILE_NAME, InputText:gsub("[%s%c]+", "")) end
             if ScreenGui then ScreenGui:Destroy() end
-            StartSealSniperV129()
+            StartSealSniperV130()
         else StatusLbl.Text = "INVALID KEY"; StatusLbl.TextColor3 = Color3.fromRGB(255, 50, 50) end
     else StatusLbl.Text = "CONNECTION ERROR"; StatusLbl.TextColor3 = Color3.fromRGB(255, 0, 0) end
 end)
