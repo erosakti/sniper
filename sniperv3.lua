@@ -1,7 +1,10 @@
 --[[ 
-    🛡️ SEAL SNIPER V120 (ULTIMATE MOBILE FIX + CUSTOM PRICE)
+    🛡️ SEAL SNIPER V121 (ULTIMATE MOBILE FIX + CUSTOM PRICE)
     Base: Source Code V120 Original
-    Modifikasi: Dropdown UI & Daftar Pet Urut Abjad (A-Z)
+    Modifikasi: 
+    - FIX Webhook Spam & ANTI-STUCK (Auto-Reset Blacklist 15s)
+    - Auto-Extract Pet Database via RAM (Tidak Perlu Input Manual)
+    - Fitur Search Box pada menu Dropdown Pet
 ]]
 
 -- ==================================================================
@@ -12,26 +15,56 @@ local DATABASE_URL = "https://gist.githubusercontent.com/erosakti/922a8f5adcfb84
 local KEY_FILE_NAME = "SealSniper_Key.json"
 
 -- ==================================================================
--- 👇 DAFTAR ITEM PRESET (URUT ABJAD) 👇
+-- 🔍 SISTEM EKSTRAKSI DATABASE (PERFECT "EGG" FILTER)
 -- ==================================================================
-local ITEM_LIST = {
-    "Flamingo", 
-    "Ghostly Headless Horseman", 
-    "Ghostly Spider", 
-    "Giant Scorpion", 
-    "Gilded Choc Peryton", 
-    "Kitsune", 
-    "Mimic Octopus", 
-    "Orang Utan", 
-    "Peryton", 
-    "Raccoon", 
-    "Rainbow Birb", 
-    "Rainbow Dilophosaurus", 
-    "Rainbow Elephant", 
-    "Sea Turtle", 
-    "Seal", 
-    "Toucan"
-}
+local function FetchMasterPetList()
+    local rawList = {}
+    
+    for _, t in pairs(getgc(true)) do
+        if type(t) == "table" then
+            pcall(function()
+                local tempNames = {}
+                local isPetDatabase = false
+                
+                for key, val in pairs(t) do
+                    if type(key) == "string" and type(val) == "table" then
+                        -- FILTER ABSOLUT: Hanya ambil item yang punya EggType atau HatchTime
+                        if rawget(val, "EggType") or rawget(val, "HatchTime") then
+                            table.insert(tempNames, key)
+                            isPetDatabase = true
+                        end
+                    end
+                end
+                
+                if isPetDatabase and #tempNames > 5 then
+                    for _, n in ipairs(tempNames) do table.insert(rawList, n) end
+                end
+            end)
+        end
+    end
+    
+    if #rawList == 0 then
+        rawList = {
+            "Giant Scorpion", "Rainbow Dilophosaurus", "Rainbow Elephant", 
+            "Ghostly Headless Horseman", "Rainbow Birb", "Seal", "Flamingo", 
+            "Toucan", "Sea Turtle", "Orang Utan", "Mimic Octopus", "Kitsune", 
+            "Raccoon", "Peryton", "Gilded Choc Peryton", "Arctic Fox", 
+            "Rainbow Frost Dragon", "Rainbow Cerberus"
+        }
+    end
+    
+    local uniqueNames = {}
+    local finalSorted = {}
+    for _, name in ipairs(rawList) do
+        if not uniqueNames[name] then
+            uniqueNames[name] = true
+            table.insert(finalSorted, name)
+        end
+    end
+    
+    table.sort(finalSorted)
+    return finalSorted
+end
 
 -- ==================================================================
 -- 🛠️ FUNGSI SISTEM (SAFE MOBILE EXECUTOR)
@@ -88,6 +121,9 @@ local function StartSealSniperV120()
     local stuckCounter = 0
     local lastListingUUID = ""
     local lastBuyTime = 0
+    
+    -- DATABASE UNTUK MENYIMPAN BARANG RUSAK AGAR DIABAIKAN
+    getgenv().IgnoredListings = getgenv().IgnoredListings or {}
 
     local ConfigFile = "Sniper_Config_V120.json"
     getgenv().SniperConfig = DefaultConfig 
@@ -100,7 +136,6 @@ local function StartSealSniperV120()
     
     if type(getgenv().SniperConfig.Targets) ~= "table" then getgenv().SniperConfig.Targets = {} end
 
-    -- 🔥 AUTO-MIGRASI DATA
     local cleanTargets = {}
     for k, v in pairs(getgenv().SniperConfig.Targets) do
         if type(k) == "number" and type(v) == "string" then
@@ -139,18 +174,29 @@ local function StartSealSniperV120()
         local httprequest = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
         if httprequest then
             local servers = {}
-            local req = httprequest({Url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", game.PlaceId)})
+            -- [FIX] Mengubah sortOrder menjadi 'Desc' agar mencari server ramai, dan excludeFullGames=true agar tidak mencoba masuk ke server penuh
+            local req = httprequest({Url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Desc&excludeFullGames=true&limit=100", game.PlaceId)})
             local body = HttpService:JSONDecode(req.Body)
             if body and body.data then
                 for i, v in next, body.data do
+                    -- Memastikan server aktif, player tidak penuh, dan bukan server kita saat ini
                     if type(v) == "table" and tonumber(v.playing) and tonumber(v.maxPlayers) and v.playing < v.maxPlayers and v.id ~= game.JobId then
-                        table.insert(servers, 1, v.id)
+                        -- [FIX] Agar tidak selalu masuk ke server urutan pertama, kita kumpulkan semua server yang sehat
+                        table.insert(servers, v.id)
                     end
                 end
             end
-            if #servers > 0 then TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)], LocalPlayer)
-            else TeleportService:Teleport(game.PlaceId, LocalPlayer) end
-        else TeleportService:Teleport(game.PlaceId, LocalPlayer) end
+            
+            if #servers > 0 then 
+                -- Pilih server secara acak dari 50 server teratas yang ramai
+                local maxRandom = math.min(50, #servers)
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, maxRandom)], LocalPlayer)
+            else 
+                TeleportService:Teleport(game.PlaceId, LocalPlayer) 
+            end
+        else 
+            TeleportService:Teleport(game.PlaceId, LocalPlayer) 
+        end
     end
 
     local function ToggleFPS(state)
@@ -171,7 +217,7 @@ local function StartSealSniperV120()
     local function SendWebhook(itemName, price, seller)
         local url = getgenv().SniperConfig.WebhookUrl
         if not url or url == "" or not string.find(url, "http") then return end
-        local data = {["embeds"] = {{["title"] = "🛡️ SNIPE ALERT!", ["description"] = "Bought **" .. itemName .. "**", ["color"] = 65280, ["fields"] = {{["name"] = "💰 Price", ["value"] = tostring(price), ["inline"] = true}, {["name"] = "👤 Seller", ["value"] = seller, ["inline"] = true}}, ["footer"] = {["text"] = "Seal Sniper V120"}}}}
+        local data = {["embeds"] = {{["title"] = "🛡️ SNIPE ALERT!", ["description"] = "Bought **" .. itemName .. "**", ["color"] = 65280, ["fields"] = {{["name"] = "💰 Price", ["value"] = tostring(price), ["inline"] = true}, {["name"] = "👤 Seller", ["value"] = seller, ["inline"] = true}}, ["footer"] = {["text"] = "Seal Sniper V121"}}}}
         local req = (syn and syn.request) or (http and http.request) or http_request or (fluxus and fluxus.request) or request
         if req then pcall(function() req({Url = url, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(data)}) end) end
     end
@@ -187,40 +233,49 @@ local function StartSealSniperV120()
 
     local RestoreBtn = Instance.new("TextButton"); RestoreBtn.Parent = ScreenGui; RestoreBtn.Visible = false; RestoreBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255); RestoreBtn.Position = UDim2.new(0.02, 0, 0.25, 0); RestoreBtn.Size = UDim2.new(0, 35, 0, 35); RestoreBtn.Text = "OPEN"; RestoreBtn.TextColor3 = Color3.new(1,1,1); RestoreBtn.Font = Enum.Font.GothamBold; RestoreBtn.TextSize = 10; Instance.new("UICorner", RestoreBtn).CornerRadius = UDim.new(0, 6)
 
-    local Title = Instance.new("TextLabel"); Title.Parent = MainFrame; Title.BackgroundTransparency = 1; Title.Position = UDim2.new(0, 10, 0, 5); Title.Size = UDim2.new(0, 150, 0, 20); Title.Font = Enum.Font.GothamBold; Title.Text = "BOT V120 🛡️"; Title.TextColor3 = Color3.fromRGB(100, 255, 100); Title.TextSize = 13; Title.TextXAlignment = Enum.TextXAlignment.Left
+    local Title = Instance.new("TextLabel"); Title.Parent = MainFrame; Title.BackgroundTransparency = 1; Title.Position = UDim2.new(0, 10, 0, 5); Title.Size = UDim2.new(0, 150, 0, 20); Title.Font = Enum.Font.GothamBold; Title.Text = "BOT V121 🛡️"; Title.TextColor3 = Color3.fromRGB(100, 255, 100); Title.TextSize = 13; Title.TextXAlignment = Enum.TextXAlignment.Left
 
     local CloseBtn = Instance.new("TextButton"); CloseBtn.Parent = MainFrame; CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50); CloseBtn.Position = UDim2.new(1, -25, 0, 5); CloseBtn.Size = UDim2.new(0, 20, 0, 20); CloseBtn.Text = "X"; CloseBtn.Font = Enum.Font.GothamBold; CloseBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0,4)
     local MinBtn = Instance.new("TextButton"); MinBtn.Parent = MainFrame; MinBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100); MinBtn.Position = UDim2.new(1, -50, 0, 5); MinBtn.Size = UDim2.new(0, 20, 0, 20); MinBtn.Text = "-"; MinBtn.Font = Enum.Font.GothamBold; MinBtn.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0,4)
 
-    -- 🔥 [NEW] RENDER UI DROPDOWN CUSTOM PRICE 🔥
-    local SelectedPet = ITEM_LIST[1]
-    
-    local function IsSelected(name)
-        return getgenv().SniperConfig.Targets[name] ~= nil
+    -- 🔥 [UI DROPDOWN & SEARCH] 🔥
+    local DynamicPetList = FetchMasterPetList()
+    local SelectedPet = "Mimic Octopus"
+    if table.find(DynamicPetList, "Mimic Octopus") then
+        SelectedPet = "Mimic Octopus"
+    elseif #DynamicPetList > 0 then
+        SelectedPet = DynamicPetList[1]
     end
-
-    -- 1. Tombol Dropdown Utama
-    local DropdownBtn = Instance.new("TextButton"); DropdownBtn.Parent = MainFrame; DropdownBtn.Position = UDim2.new(0, 10, 0, 35); DropdownBtn.Size = UDim2.new(0, 160, 0, 25); DropdownBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 45); DropdownBtn.Font = Enum.Font.GothamSemibold; DropdownBtn.TextSize = 10; DropdownBtn.TextColor3 = Color3.fromRGB(220, 220, 220); DropdownBtn.TextXAlignment = Enum.TextXAlignment.Left; Instance.new("UICorner", DropdownBtn).CornerRadius = UDim.new(0, 4)
-
-    -- 2. Tombol Toggle Target & Price Box untuk Pet Terpilih
-    local PetToggleBtn = Instance.new("TextButton"); PetToggleBtn.Parent = MainFrame; PetToggleBtn.Position = UDim2.new(0, 10, 0, 65); PetToggleBtn.Size = UDim2.new(0, 95, 0, 25); PetToggleBtn.Font = Enum.Font.GothamBold; PetToggleBtn.TextSize = 10; Instance.new("UICorner", PetToggleBtn).CornerRadius = UDim.new(0, 4)
     
+    local function IsSelected(name) return getgenv().SniperConfig.Targets[name] ~= nil end
+
+    local DropdownBtn = Instance.new("TextButton"); DropdownBtn.Parent = MainFrame; DropdownBtn.Position = UDim2.new(0, 10, 0, 35); DropdownBtn.Size = UDim2.new(0, 160, 0, 25); DropdownBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 45); DropdownBtn.Font = Enum.Font.GothamSemibold; DropdownBtn.TextSize = 10; DropdownBtn.TextColor3 = Color3.fromRGB(220, 220, 220); DropdownBtn.TextXAlignment = Enum.TextXAlignment.Left; Instance.new("UICorner", DropdownBtn).CornerRadius = UDim.new(0, 4)
+    local PetToggleBtn = Instance.new("TextButton"); PetToggleBtn.Parent = MainFrame; PetToggleBtn.Position = UDim2.new(0, 10, 0, 65); PetToggleBtn.Size = UDim2.new(0, 95, 0, 25); PetToggleBtn.Font = Enum.Font.GothamBold; PetToggleBtn.TextSize = 10; Instance.new("UICorner", PetToggleBtn).CornerRadius = UDim.new(0, 4)
     local PetPriceBox = Instance.new("TextBox"); PetPriceBox.Parent = MainFrame; PetPriceBox.Position = UDim2.new(0, 110, 0, 65); PetPriceBox.Size = UDim2.new(0, 60, 0, 25); PetPriceBox.Font = Enum.Font.GothamBold; PetPriceBox.TextSize = 10; PetPriceBox.PlaceholderText = "Max"; PetPriceBox.BackgroundColor3 = Color3.fromRGB(20, 20, 25); PetPriceBox.TextColor3 = Color3.fromRGB(255, 255, 0); Instance.new("UICorner", PetPriceBox).CornerRadius = UDim.new(0, 4)
-
-    -- 3. Info List Target Aktif
     local ActiveTargetsLbl = Instance.new("TextLabel"); ActiveTargetsLbl.Parent = MainFrame; ActiveTargetsLbl.Position = UDim2.new(0, 10, 0, 95); ActiveTargetsLbl.Size = UDim2.new(0, 160, 0, 120); ActiveTargetsLbl.BackgroundTransparency = 1; ActiveTargetsLbl.Font = Enum.Font.Gotham; ActiveTargetsLbl.TextSize = 9; ActiveTargetsLbl.TextColor3 = Color3.fromRGB(150, 150, 150); ActiveTargetsLbl.TextXAlignment = Enum.TextXAlignment.Left; ActiveTargetsLbl.TextYAlignment = Enum.TextYAlignment.Top; ActiveTargetsLbl.TextWrapped = true
+    
+    -- Search Box
+    local SearchBox = Instance.new("TextBox")
+    SearchBox.Parent = MainFrame
+    SearchBox.Position = UDim2.new(0, 10, 0, 62)
+    SearchBox.Size = UDim2.new(0, 160, 0, 25)
+    SearchBox.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    SearchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SearchBox.Font = Enum.Font.Gotham
+    SearchBox.TextSize = 10
+    SearchBox.PlaceholderText = "🔍 Cari Pet..."
+    SearchBox.Visible = false
+    SearchBox.ZIndex = 11
+    Instance.new("UICorner", SearchBox).CornerRadius = UDim.new(0, 4)
 
-    -- 4. Panel Scroll Dropdown (Hidden by Default)
-    local DropListScroll = Instance.new("ScrollingFrame"); DropListScroll.Parent = MainFrame; DropListScroll.Position = UDim2.new(0, 10, 0, 62); DropListScroll.Size = UDim2.new(0, 160, 0, 155); DropListScroll.BackgroundColor3 = Color3.fromRGB(35, 35, 40); DropListScroll.ScrollBarThickness = 3; DropListScroll.BorderSizePixel = 0; DropListScroll.Visible = false; DropListScroll.ZIndex = 10; Instance.new("UICorner", DropListScroll).CornerRadius = UDim.new(0, 4)
+    -- Drop List Scroll (Posisi disesuaikan agar di bawah SearchBox)
+    local DropListScroll = Instance.new("ScrollingFrame"); DropListScroll.Parent = MainFrame; DropListScroll.Position = UDim2.new(0, 10, 0, 89); DropListScroll.Size = UDim2.new(0, 160, 0, 128); DropListScroll.BackgroundColor3 = Color3.fromRGB(35, 35, 40); DropListScroll.ScrollBarThickness = 3; DropListScroll.BorderSizePixel = 0; DropListScroll.Visible = false; DropListScroll.ZIndex = 10; Instance.new("UICorner", DropListScroll).CornerRadius = UDim.new(0, 4)
     local UIListLayout = Instance.new("UIListLayout"); UIListLayout.Parent = DropListScroll; UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
     local function UpdateActiveTargetsText()
         local txt = "🎯 ACTIVE TARGETS:\n"
         local count = 0
-        for k, v in pairs(getgenv().SniperConfig.Targets) do
-            txt = txt .. "- " .. k .. " (" .. (v > 0 and v or "Max") .. ")\n"
-            count = count + 1
-        end
+        for k, v in pairs(getgenv().SniperConfig.Targets) do txt = txt .. "- " .. k .. " (" .. (v > 0 and v or "Max") .. ")\n"; count = count + 1 end
         if count == 0 then txt = txt .. "None" end
         ActiveTargetsLbl.Text = txt
     end
@@ -228,54 +283,70 @@ local function StartSealSniperV120()
     local function RefreshDropdownUI()
         DropdownBtn.Text = "  " .. SelectedPet .. "  ▼"
         if IsSelected(SelectedPet) then
-            PetToggleBtn.Text = "SNIPE: ON"
-            PetToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 100)
-            PetToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            PetPriceBox.Visible = true
-            local savedPrice = getgenv().SniperConfig.Targets[SelectedPet]
-            PetPriceBox.Text = (savedPrice and savedPrice > 0) and tostring(savedPrice) or ""
+            PetToggleBtn.Text = "SNIPE: ON"; PetToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 100); PetToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255); PetPriceBox.Visible = true
+            local savedPrice = getgenv().SniperConfig.Targets[SelectedPet]; PetPriceBox.Text = (savedPrice and savedPrice > 0) and tostring(savedPrice) or ""
         else
-            PetToggleBtn.Text = "SNIPE: OFF"
-            PetToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-            PetToggleBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-            PetPriceBox.Visible = false
+            PetToggleBtn.Text = "SNIPE: OFF"; PetToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 45); PetToggleBtn.TextColor3 = Color3.fromRGB(200, 200, 200); PetPriceBox.Visible = false
         end
-        
-        -- Warna list hijau jika pet sudah masuk target
         for _, child in pairs(DropListScroll:GetChildren()) do
             if child:IsA("TextButton") then
-                if IsSelected(child.Name) then child.TextColor3 = Color3.fromRGB(0, 255, 100)
-                else child.TextColor3 = Color3.fromRGB(220, 220, 220) end
+                if IsSelected(child.Name) then child.TextColor3 = Color3.fromRGB(0, 255, 100) else child.TextColor3 = Color3.fromRGB(220, 220, 220) end
             end
         end
         UpdateActiveTargetsText()
     end
 
-    -- Isi Dropdown (Telah diurutkan)
-    for _, item in ipairs(ITEM_LIST) do
-        local btn = Instance.new("TextButton"); btn.Name = item; btn.Parent = DropListScroll; btn.Size = UDim2.new(1, -10, 0, 20); btn.BackgroundTransparency = 1; btn.Text = "  " .. item; btn.Font = Enum.Font.Gotham; btn.TextSize = 10; btn.TextXAlignment = Enum.TextXAlignment.Left; btn.ZIndex = 11
-        btn.MouseButton1Click:Connect(function()
-            SelectedPet = item
-            DropListScroll.Visible = false
-            RefreshDropdownUI()
-        end)
-    end
-    DropListScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10)
+    local function PopulateDropdown(filterText)
+        filterText = filterText and string.lower(filterText) or ""
+        
+        for _, child in pairs(DropListScroll:GetChildren()) do
+            if child:IsA("TextButton") then child:Destroy() end
+        end
 
-    -- Logika Interaksi UI Dropdown
-    DropdownBtn.MouseButton1Click:Connect(function() DropListScroll.Visible = not DropListScroll.Visible end)
-    
+        for _, item in ipairs(DynamicPetList) do
+            if filterText == "" or string.find(string.lower(item), filterText, 1, true) then
+                local btn = Instance.new("TextButton")
+                btn.Name = item; btn.Parent = DropListScroll
+                btn.Size = UDim2.new(1, -10, 0, 20); btn.BackgroundTransparency = 1
+                btn.Text = "  " .. item; btn.Font = Enum.Font.Gotham; btn.TextSize = 10
+                btn.TextXAlignment = Enum.TextXAlignment.Left; btn.ZIndex = 11
+
+                if IsSelected(item) then 
+                    btn.TextColor3 = Color3.fromRGB(0, 255, 100)
+                else 
+                    btn.TextColor3 = Color3.fromRGB(220, 220, 220) 
+                end
+
+                btn.MouseButton1Click:Connect(function()
+                    SelectedPet = item
+                    DropListScroll.Visible = false
+                    SearchBox.Visible = false
+                    SearchBox.Text = "" 
+                    RefreshDropdownUI()
+                end)
+            end
+        end
+        DropListScroll.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10)
+    end
+
+    -- Trigger search bar update
+    SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+        PopulateDropdown(SearchBox.Text)
+    end)
+
+    DropdownBtn.MouseButton1Click:Connect(function() 
+        local isOpening = not DropListScroll.Visible
+        DropListScroll.Visible = isOpening
+        SearchBox.Visible = isOpening
+        if isOpening then PopulateDropdown(SearchBox.Text) end
+    end)
+
     PetToggleBtn.MouseButton1Click:Connect(function()
-        if IsSelected(SelectedPet) then getgenv().SniperConfig.Targets[SelectedPet] = nil
-        else getgenv().SniperConfig.Targets[SelectedPet] = tonumber(PetPriceBox.Text) or 0 end
+        if IsSelected(SelectedPet) then getgenv().SniperConfig.Targets[SelectedPet] = nil else getgenv().SniperConfig.Targets[SelectedPet] = tonumber(PetPriceBox.Text) or 0 end
         SaveConfig(); RefreshDropdownUI()
     end)
-    
     PetPriceBox.FocusLost:Connect(function()
-        if IsSelected(SelectedPet) then
-            getgenv().SniperConfig.Targets[SelectedPet] = tonumber(PetPriceBox.Text) or 0
-            SaveConfig(); RefreshDropdownUI()
-        end
+        if IsSelected(SelectedPet) then getgenv().SniperConfig.Targets[SelectedPet] = tonumber(PetPriceBox.Text) or 0; SaveConfig(); RefreshDropdownUI() end
     end)
     
     RefreshDropdownUI()
@@ -296,9 +367,7 @@ local function StartSealSniperV120()
 
     local HopBtn = Instance.new("TextButton"); HopBtn.Parent = MainFrame; HopBtn.Position = UDim2.new(0, X_OFFSET, 0, 125); HopBtn.Size = UDim2.new(0, 90, 0, 25); HopBtn.Font = Enum.Font.GothamBold; HopBtn.TextSize = 9; Instance.new("UICorner", HopBtn).CornerRadius = UDim.new(0,4)
     local FPSBtn = Instance.new("TextButton"); FPSBtn.Parent = MainFrame; FPSBtn.Position = UDim2.new(0, X_OFFSET + 100, 0, 125); FPSBtn.Size = UDim2.new(0, 90, 0, 25); FPSBtn.Font = Enum.Font.GothamBold; FPSBtn.TextSize = 9; Instance.new("UICorner", FPSBtn).CornerRadius = UDim.new(0,4)
-    
     local ToggleBtn = Instance.new("TextButton"); ToggleBtn.Parent = MainFrame; ToggleBtn.Position = UDim2.new(0, X_OFFSET, 0, 155); ToggleBtn.Size = UDim2.new(0, 190, 0, 30); ToggleBtn.Font = Enum.Font.GothamBlack; ToggleBtn.TextSize = 14; Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0,4)
-    
     local StatusLbl = Instance.new("TextLabel"); StatusLbl.Parent = MainFrame; StatusLbl.BackgroundTransparency = 1; StatusLbl.Position = UDim2.new(0, X_OFFSET, 0, 195); StatusLbl.Size = UDim2.new(0, 190, 0, 15); StatusLbl.Font = Enum.Font.Gotham; StatusLbl.Text = "IDLE"; StatusLbl.TextColor3 = Color3.fromRGB(150, 150, 150); StatusLbl.TextSize = 10; StatusLbl.TextWrapped = true; StatusLbl.TextYAlignment = Enum.TextYAlignment.Top
 
     local function UpdateUI()
@@ -329,59 +398,90 @@ local function StartSealSniperV120()
         
         local globalBudget = getgenv().SniperConfig.MaxPrice
         for listingUUID, info in pairs(data.Listings) do
-            local linkID = info.ItemId
-            if linkID and data.Items[linkID] then
-                local itemData = data.Items[linkID]
-                local petName = itemData.PetType or (itemData.PetData and itemData.PetData.PetType)
+            
+            -- CEK BLACKLIST & AUTO-RESET 15 DETIK
+            local isBlacklisted = false
+            if getgenv().IgnoredListings[listingUUID] then
+                if tick() - getgenv().IgnoredListings[listingUUID] >= 15 then
+                    getgenv().IgnoredListings[listingUUID] = nil -- Reset blacklist jika sudah lewat 15 detik
+                else
+                    isBlacklisted = true -- Masih diblacklist, abaikan
+                end
+            end
+            
+            if not isBlacklisted then
                 
-                -- 🔥 LOGIC CEK TARGET & CUSTOM PRICE 🔥
-                local targetData = getgenv().SniperConfig.Targets[petName]
-                if targetData ~= nil then
-                    local customBudget = tonumber(targetData) or 0
-                    local activeBudget = (customBudget > 0) and customBudget or globalBudget
+                local linkID = info.ItemId
+                if linkID and data.Items[linkID] then
+                    local itemData = data.Items[linkID]
+                    local petName = itemData.PetType or (itemData.PetData and itemData.PetData.PetType)
                     
-                    local priceOk = false
-                    if activeBudget == 0 then priceOk = true 
-                    elseif info.Price and info.Price <= activeBudget then priceOk = true end
-                    
-                    if priceOk then
-                        if (tick() - lastBuyTime) < 1.5 then 
-                            StatusLbl.Text = "WAITING SERVER..."
-                            return 
-                        end
-
-                        if lastListingUUID == listingUUID then
-                            stuckCounter = stuckCounter + 1
-                        else
-                            lastListingUUID = listingUUID
-                            stuckCounter = 0
-                        end
-
-                        if stuckCounter > 15 then
-                            StatusLbl.Text = "BUGGED! HOPPING..."
-                            StatusLbl.TextColor3 = Color3.fromRGB(255, 0, 0)
-                            task.wait(0.5)
-                            ServerHop()
-                            return 
-                        end
-
-                        StatusLbl.Text = "BUYING: " .. petName
-                        StatusLbl.TextColor3 = Color3.fromRGB(0, 255, 0)
+                    local targetData = getgenv().SniperConfig.Targets[petName]
+                    if targetData ~= nil then
+                        local customBudget = tonumber(targetData) or 0
+                        local activeBudget = (customBudget > 0) and customBudget or globalBudget
                         
-                        task.spawn(function()
-                            if player ~= LocalPlayer then
-                                pcall(function()
-                                    if BuyController and BuyController.BuyItem then BuyController:BuyItem(player, listingUUID) 
-                                    else ReplicatedStorage.GameEvents.TradeEvents.Booths.BuyListing:InvokeServer(player, listingUUID) end
-                                end)
+                        local priceOk = false
+                        if activeBudget == 0 then priceOk = true 
+                        elseif info.Price and info.Price <= activeBudget then priceOk = true end
+                        
+                        if priceOk then
+                            if (tick() - lastBuyTime) < 1.5 then 
+                                StatusLbl.Text = "WAITING SERVER..."
+                                return 
                             end
-                            SendWebhook(petName, info.Price, player.Name)
-                        end)
-                        
-                        lastBuyTime = tick() 
-                        if stuckCounter < 5 then hopTimer = tick() end 
-                        StatusLbl.Text = "PURCHASING..."
-                        return 
+
+                            if lastListingUUID == listingUUID then
+                                stuckCounter = stuckCounter + 1
+                            else
+                                lastListingUUID = listingUUID
+                                stuckCounter = 0
+                            end
+
+                            -- 🔥 GAGAL 100 KALI = BLACKLIST SEMENTARA 🔥
+                            if stuckCounter > 100 then
+                                StatusLbl.Text = "BUGGED ITEM BLACKLISTED (15s)!"
+                                StatusLbl.TextColor3 = Color3.fromRGB(255, 165, 0)
+                                getgenv().IgnoredListings[listingUUID] = tick() -- Mencatat waktu blacklist
+                                stuckCounter = 0
+                                return 
+                            end
+
+                            StatusLbl.Text = "BUYING: " .. petName
+                            StatusLbl.TextColor3 = Color3.fromRGB(0, 255, 0)
+                            
+                            task.spawn(function()
+                                if player ~= LocalPlayer then
+                                    local isPurchaseSuccess = false
+                                    
+                                    pcall(function()
+                                        local result
+                                        if BuyController and BuyController.BuyItem then 
+                                            result = BuyController:BuyItem(player, listingUUID) 
+                                        else 
+                                            result = ReplicatedStorage.GameEvents.TradeEvents.Booths.BuyListing:InvokeServer(player, listingUUID) 
+                                        end
+                                        
+                                        if result ~= false then
+                                            isPurchaseSuccess = true
+                                        end
+                                    end)
+
+                                    if isPurchaseSuccess then
+                                        getgenv().SentWebhooks = getgenv().SentWebhooks or {}
+                                        if not getgenv().SentWebhooks[listingUUID] then
+                                            getgenv().SentWebhooks[listingUUID] = true
+                                            SendWebhook(petName, info.Price, player.Name)
+                                        end
+                                    end
+                                end
+                            end)
+                            
+                            lastBuyTime = tick() 
+                            if stuckCounter < 100 then hopTimer = tick() end 
+                            StatusLbl.Text = "PURCHASING..."
+                            return 
+                        end
                     end
                 end
             end
@@ -397,7 +497,7 @@ local function StartSealSniperV120()
                     local durasi = tick() - hopTimer
                     local sisa = math.ceil(getgenv().SniperConfig.HopDelay - durasi)
                     
-                    if StatusLbl.Text ~= "PURCHASING..." and StatusLbl.Text ~= "WAITING SERVER..." then
+                    if StatusLbl.Text ~= "PURCHASING..." and StatusLbl.Text ~= "WAITING SERVER..." and StatusLbl.Text ~= "BUGGED ITEM BLACKLISTED (15s)!" then
                        if sisa % 1 == 0 then 
                            StatusLbl.Text = "SCANNING... Hop: " .. sisa .. "s"
                            StatusLbl.TextColor3 = Color3.fromRGB(255, 50, 50)
